@@ -1,0 +1,50 @@
+stages:
+  - test
+  - build
+
+default:
+  interruptible: true
+
+fixture-service:test:
+  stage: test
+  image: node:20-alpine
+  variables:
+    SERVICE_DIRECTORY: services/fixture-service
+  cache:
+    key:
+      files:
+        - services/fixture-service/package.json
+    paths:
+      - services/fixture-service/.npm/
+  before_script:
+    - cd "$SERVICE_DIRECTORY"
+    - npm install --cache .npm --prefer-offline
+  script:
+    - npm test
+
+fixture-service:build:
+  stage: build
+  image: docker:27-cli
+  services:
+    - name: docker:27-dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+    IMAGE_TAG: "$CI_REGISTRY_IMAGE/fixture-service:$CI_COMMIT_SHA"
+  script:
+    - docker build --tag "$IMAGE_TAG" services/fixture-service
+    - |
+      if [ "${CI_COMMIT_BRANCH:-}" = "$CI_DEFAULT_BRANCH" ]; then
+        echo "$CI_REGISTRY_PASSWORD" | docker login --username "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+        docker push "$IMAGE_TAG"
+        docker tag "$IMAGE_TAG" "$CI_REGISTRY_IMAGE/fixture-service:development"
+        docker push "$CI_REGISTRY_IMAGE/fixture-service:development"
+      fi
+    - echo "FIXTURE_SERVICE_IMAGE=$IMAGE_TAG" > fixture-service-image.env
+  artifacts:
+    reports:
+      dotenv: fixture-service-image.env
+    name: "fixture-service-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - fixture-service-image.env
+    expire_in: 1 day

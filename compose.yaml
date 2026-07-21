@@ -1,0 +1,28 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: matchops
+      POSTGRES_USER: matchops
+      POSTGRES_PASSWORD: matchops
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U matchops -d matchops"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+  fixture-service:
+    build: ./services/fixture-service
+    environment:
+      DATABASE_URL: postgresql://matchops:matchops@postgres:5432/matchops
+    command: sh -c "npm run migrate && npm start"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+
+volumes:
+  postgres-data:

@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: fixture-service-development
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: https://gitlab.com/acp-group3273029/alex-container-platform.git
+    targetRevision: main
+    path: platform/kubernetes/overlays/development/fixture-service
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: match-data
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
