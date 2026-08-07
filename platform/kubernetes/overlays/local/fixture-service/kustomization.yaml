@@ -3,8 +3,9 @@ kind: Kustomization
 namespace: match-data
 resources:
   - ../../../base/fixture-service
-  - database-secret.yaml
+  - external-secret.yaml
   - postgres.yaml
+  - certificate.yaml
 images:
   - name: fixture-service
     newName: fixture-service

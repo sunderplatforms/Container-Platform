@@ -82,8 +82,6 @@ curl http://localhost:8080/v1/fixtures
 curl http://localhost:8080/metrics
 ```
 
-## Next implementation steps
-
 ## Continuous integration
 
 GitLab CI runs the service tests and builds an image for every pipeline. Pipelines on the default branch publish the image to the GitLab Container Registry with an immutable commit-SHA tag and update the mutable `development` tag.
