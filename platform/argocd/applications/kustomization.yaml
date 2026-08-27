@@ -3,3 +3,4 @@ kind: Kustomization
 resources:
   - match-data-tenant.yaml
   - fixture-service-development.yaml
+  - results-service-development.yaml

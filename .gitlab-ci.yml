@@ -48,3 +48,47 @@ fixture-service:build:
     paths:
       - fixture-service-image.env
     expire_in: 1 day
+
+results-service:test:
+  stage: test
+  image: node:20-alpine
+  variables:
+    SERVICE_DIRECTORY: services/results-service
+  cache:
+    key:
+      files:
+        - services/results-service/package.json
+    paths:
+      - services/results-service/.npm/
+  before_script:
+    - cd "$SERVICE_DIRECTORY"
+    - npm install --cache .npm --prefer-offline
+  script:
+    - npm test
+
+results-service:build:
+  stage: build
+  image: docker:27-cli
+  services:
+    - name: docker:27-dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+    IMAGE_TAG: "$CI_REGISTRY_IMAGE/results-service:$CI_COMMIT_SHA"
+  script:
+    - docker build --tag "$IMAGE_TAG" services/results-service
+    - |
+      if [ "${CI_COMMIT_BRANCH:-}" = "$CI_DEFAULT_BRANCH" ]; then
+        echo "$CI_REGISTRY_PASSWORD" | docker login --username "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+        docker push "$IMAGE_TAG"
+        docker tag "$IMAGE_TAG" "$CI_REGISTRY_IMAGE/results-service:development"
+        docker push "$CI_REGISTRY_IMAGE/results-service:development"
+      fi
+    - echo "RESULTS_SERVICE_IMAGE=$IMAGE_TAG" > results-service-image.env
+  artifacts:
+    reports:
+      dotenv: results-service-image.env
+    name: "results-service-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - results-service-image.env
+    expire_in: 1 day
