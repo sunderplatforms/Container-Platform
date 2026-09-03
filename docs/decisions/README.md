@@ -10,5 +10,6 @@ attached usually means the cost hasn't been found yet.
 * [0004 - Deployment config lives in its own repo](0004-split-platform-config-into-separate-repo.md)
 * [0005 - Default-deny NetworkPolicy baseline](0005-default-deny-network-policy.md)
 * [0006 - CI pins the deployed image tag to the exact commit SHA](0006-ci-driven-image-tag-promotion.md)
+* [0007 - PodDisruptionBudget in base, HorizontalPodAutoscaler in the development overlay only](0007-pdb-and-hpa.md)
 
 When a decision's rollout actually broke, the full account is in [../postmortems/](../postmortems/) rather than folded into the ADR itself.
