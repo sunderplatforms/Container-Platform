@@ -1,5 +1,21 @@
 # Getting Started
 
+## Two repos
+
+Application source lives here. Kubernetes and ArgoCD deployment manifests live in a
+separate repo, [alex-container-platform-gitops](https://gitlab.com/acp-group3273029/alex-container-platform-gitops)
+— see that repo's README for why application source and deployment config are split.
+Every Kubernetes command below assumes it's cloned as a sibling of this repo:
+
+```sh
+cd ..
+git clone git@gitlab.com:acp-group3273029/alex-container-platform-gitops.git
+cd "Alex Container Platform"   # or whatever you named this checkout
+```
+
+`scripts/dev-deploy.sh` looks for it at `../alex-container-platform-gitops` by default;
+override with `PLATFORM_REPO_DIR` if you've put it somewhere else.
+
 ## First vertical slice
 
 The repository includes two services that establish the delivery path for future product services: `fixture-service` and `results-service`.
@@ -108,13 +124,13 @@ curl http://localhost:3001/v1/results                   # results-service
 
 ## Deploy to Kubernetes
 
-The workload manifests are in `platform/kubernetes/base/fixture-service` and `platform/kubernetes/base/results-service`. Deploy `fixture-service` first — `results-service`'s base manifest already points `FIXTURE_SERVICE_URL` at `http://fixture-service` in the same namespace.
+The workload manifests are in `kubernetes/base/fixture-service` and `kubernetes/base/results-service` of the `alex-container-platform-gitops` repo. Deploy `fixture-service` first — `results-service`'s base manifest already points `FIXTURE_SERVICE_URL` at `http://fixture-service` in the same namespace.
 
 Create `fixture-service-database` and `results-service-database` in the target namespace, each with a `url` key, before deployment. In a production environment, these should be synchronized from a secret manager by External Secrets rather than committed to Git.
 
 ```sh
-kubectl apply -k platform/kubernetes/base/fixture-service
-kubectl apply -k platform/kubernetes/base/results-service
+kubectl apply -k ../alex-container-platform-gitops/kubernetes/base/fixture-service
+kubectl apply -k ../alex-container-platform-gitops/kubernetes/base/results-service
 kubectl port-forward service/fixture-service 8080:80
 curl http://localhost:8080/livez
 curl http://localhost:8080/readyz
@@ -134,7 +150,7 @@ For Rancher Desktop, these local overlays each provision PostgreSQL, run the mig
 First, create the tenant namespace once:
 
 ```sh
-kubectl apply -k platform/kubernetes/tenants/match-data
+kubectl apply -k ../alex-container-platform-gitops/kubernetes/tenants/match-data
 ```
 
 Then build and deploy with `scripts/dev-deploy.sh`:

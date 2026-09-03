@@ -15,6 +15,11 @@
 # tag with `kubectl set image`. A new tag is always a manifest change, so a
 # rollout always happens.
 #
+# Deployment manifests live in a separate repo (alex-container-platform-gitops) -
+# see docs/getting-started.md for why. This script expects it cloned as a sibling
+# directory next to this one by default; override with PLATFORM_REPO_DIR if you've
+# put it somewhere else.
+#
 # Usage:
 #   scripts/dev-deploy.sh                        # build + deploy every service
 #   scripts/dev-deploy.sh fixture-service         # build + deploy just one
@@ -23,8 +28,21 @@
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PLATFORM_REPO_DIR="${PLATFORM_REPO_DIR:-$REPO_ROOT/../alex-container-platform-gitops}"
 NAMESPACE=match-data
 ALL_SERVICES=(fixture-service results-service)
+
+if [ ! -d "$PLATFORM_REPO_DIR" ]; then
+  cat >&2 <<MSG
+error: platform repo not found at $PLATFORM_REPO_DIR
+
+Clone it as a sibling of this repo:
+  git clone git@gitlab.com:acp-group3273029/alex-container-platform-gitops.git "$PLATFORM_REPO_DIR"
+
+Or point PLATFORM_REPO_DIR at wherever you already have it checked out.
+MSG
+  exit 1
+fi
 
 services=("$@")
 if [ ${#services[@]} -eq 0 ]; then
@@ -33,7 +51,7 @@ fi
 
 deploy_one() {
   local service="$1"
-  local overlay="$REPO_ROOT/platform/kubernetes/overlays/local/$service"
+  local overlay="$PLATFORM_REPO_DIR/kubernetes/overlays/local/$service"
 
   if [ ! -d "$overlay" ]; then
     echo "error: no local overlay for '$service' at $overlay" >&2
