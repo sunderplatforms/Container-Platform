@@ -105,25 +105,28 @@ kind load docker-image results-service:0.1.0
 
 For Rancher Desktop, these local overlays each provision PostgreSQL, run the migration in an init-container, and deploy the service. They use development-only database passwords and local persistent volumes; do not use them outside your laptop.
 
+First, create the tenant namespace once:
+
 ```sh
-docker build -t fixture-service:local services/fixture-service
-docker build -t results-service:local services/results-service
 kubectl apply -k platform/kubernetes/tenants/match-data
-kubectl apply -k platform/kubernetes/overlays/local/fixture-service
-kubectl apply -k platform/kubernetes/overlays/local/results-service
-kubectl rollout status deployment/fixture-service -n match-data
-kubectl rollout status deployment/results-service -n match-data
+```
+
+Then build and deploy with `scripts/dev-deploy.sh`:
+
+```sh
+scripts/dev-deploy.sh                        # both services
+scripts/dev-deploy.sh fixture-service        # just one
 kubectl port-forward -n match-data service/fixture-service 8080:80
 ```
 
-`kubectl apply` only recreates a pod when the manifest actually changes. Both overlays
-pin the image to a fixed `local`/`development` tag with `imagePullPolicy: Never`, so after
-rebuilding an image with the same tag, force a redeploy explicitly:
-
-```sh
-kubectl rollout restart deployment/fixture-service -n match-data
-kubectl rollout restart deployment/results-service -n match-data
-```
+Both overlays pin the image to a fixed `local` tag with `imagePullPolicy: Never`, which is
+what lets the cluster run an image built straight into its own image store instead of
+pulling from a registry - but it also means a plain `kubectl apply -k` can't tell a
+rebuilt image apart from the one already running: the manifest text didn't change, so it
+sees no diff and never recreates the pod. `scripts/dev-deploy.sh` avoids that by tagging
+every build with a timestamp and pointing the deployment at that exact tag with
+`kubectl set image`, so a rebuild always produces a real rollout. Use it instead of
+running `docker build` and `kubectl apply -k` by hand.
 
 Then verify the service in another terminal:
 
