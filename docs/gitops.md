@@ -21,6 +21,8 @@ Argo CD Applications reconcile the tenant resources and both services' developme
 
 Application source and images are published from `acp-group3273029/alex-container-platform` (this repo). Deployment manifests live in `acp-group3273029/alex-container-platform-gitops`.
 
+CI needs push access to the GitOps repo to pin the development overlay to the commit it just built (see Image promotion below). Create a Project Access Token on `alex-container-platform-gitops` (Settings → Access Tokens), role **Developer**, scope **`write_repository`** only. Add it as a CI/CD variable named `GITOPS_DEPLOY_TOKEN` on `alex-container-platform` (Settings → CI/CD → Variables), marked **Masked** and **Protected**.
+
 The cluster must have Argo CD and External Secrets installed, plus a `ClusterSecretStore` named `aws-secrets-manager`. Store these JSON objects in AWS Secrets Manager:
 
 ```json
@@ -50,4 +52,17 @@ Argo CD will create the tenant namespace and reconcile both services into it.
 
 ## Image promotion
 
-The development overlay follows the mutable `development` tag published from the default branch. Its image pull policy is `Always`, so newly created pods use the current development image. Production overlays should instead use an immutable commit SHA or image digest.
+On the default branch, after an image is built and pushed, a `promote` stage job clones
+`alex-container-platform-gitops`, rewrites the development overlay's `newTag` to
+`$CI_COMMIT_SHA`, and pushes that commit - so the overlay always points at the exact
+commit that produced the image, not a moving target. ArgoCD's automated sync then rolls
+that commit out.
+
+The `:development` registry tag is still published alongside the SHA tag for convenience
+(pulling "whatever's newest" by hand), but nothing in the deployed manifests references it
+- the overlay only ever tracks a specific commit SHA. If the promote job's commit finds
+the overlay already pinned to that SHA (re-running a pipeline, or nothing changed), it's a
+no-op rather than an empty commit.
+
+Production overlays would follow the same pattern, likely promoted through a manual
+approval gate rather than automatically on every default-branch push.

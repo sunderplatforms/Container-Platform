@@ -1,9 +1,39 @@
 stages:
   - test
   - build
+  - promote
 
 default:
   interruptible: true
+
+.promote:
+  stage: promote
+  image: alpine/git:2.45.2
+  rules:
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  script:
+    - |
+      if [ -z "${GITOPS_DEPLOY_TOKEN:-}" ]; then
+        echo "GITOPS_DEPLOY_TOKEN is not set - see docs/gitops.md for how to create it." >&2
+        exit 1
+      fi
+    - git clone --depth 1 "https://gitops-ci:${GITOPS_DEPLOY_TOKEN}@gitlab.com/acp-group3273029/alex-container-platform-gitops.git" gitops
+    - |
+      sed -i "s/^\([[:space:]]*newTag:[[:space:]]*\).*/\1${CI_COMMIT_SHA}/" \
+        "gitops/kubernetes/overlays/development/${SERVICE_NAME}/kustomization.yaml"
+    - cd gitops
+    - git config user.email "ci@alex-container-platform"
+    - git config user.name "GitLab CI"
+    - |
+      if git diff --quiet; then
+        echo "Overlay already pinned to ${CI_COMMIT_SHA}, nothing to commit."
+      else
+        git commit -am "Deploy ${SERVICE_NAME} ${CI_COMMIT_SHA}
+
+      Promoted by ${CI_PIPELINE_URL}
+      Source commit: https://gitlab.com/acp-group3273029/alex-container-platform/-/commit/${CI_COMMIT_SHA}"
+        git push origin main
+      fi
 
 fixture-service:test:
   stage: test
@@ -74,6 +104,14 @@ fixture-service:build:
       - fixture-service-image.env
     expire_in: 1 day
 
+fixture-service:promote:
+  extends: .promote
+  needs:
+    - job: fixture-service:build
+      artifacts: true
+  variables:
+    SERVICE_NAME: fixture-service
+
 results-service:test:
   stage: test
   image: node:20-alpine
@@ -142,3 +180,11 @@ results-service:build:
     paths:
       - results-service-image.env
     expire_in: 1 day
+
+results-service:promote:
+  extends: .promote
+  needs:
+    - job: results-service:build
+      artifacts: true
+  variables:
+    SERVICE_NAME: results-service
