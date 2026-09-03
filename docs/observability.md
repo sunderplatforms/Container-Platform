@@ -2,15 +2,15 @@
 
 ## Application metrics
 
-`fixture-service` exposes Prometheus metrics at `GET /metrics`.
+Both `fixture-service` and `results-service` expose Prometheus metrics at `GET /metrics`, under a `fixture_service_` or `results_service_` prefix respectively.
 
 | Metric | Meaning |
 | --- | --- |
-| `fixture_service_http_requests_total` | HTTP request count by method, route, and response status. |
-| `fixture_service_http_request_duration_seconds` | HTTP request latency histogram by method, route, and response status. |
-| `fixture_service_info` | Static service identity metric. |
+| `<service>_http_requests_total` | HTTP request count by method, route, and response status. |
+| `<service>_http_request_duration_seconds` | HTTP request latency histogram by method, route, and response status. |
+| `<service>_info` | Static service identity metric. |
 
-Metrics intentionally use route templates rather than request values, preventing high-cardinality labels.
+Metrics intentionally use route templates rather than request values, preventing high-cardinality labels — for example every `GET /v1/results?fixtureId=...` request is recorded under the single route `/v1/results`, not one series per fixture.
 
 ## Kubernetes discovery
 
@@ -23,7 +23,7 @@ kubectl get servicemonitor -n match-data
 kubectl port-forward -n platform-monitoring service/kube-prometheus-stack-prometheus 9090:9090
 ```
 
-Then open the Prometheus targets page at `http://localhost:9090/targets` and confirm that `fixture-service` is `UP`.
+Then open the Prometheus targets page at `http://localhost:9090/targets` and confirm that both `fixture-service` and `results-service` are `UP`.
 
 ## First dashboards and alerts
 

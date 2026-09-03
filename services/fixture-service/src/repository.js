@@ -20,6 +20,16 @@ export class PostgresFixtureRepository {
     return result.rows;
   }
 
+  async get(id) {
+    const result = await this.pool.query(
+      `SELECT id, competition, kickoff, home_team AS "homeTeam", away_team AS "awayTeam", status
+       FROM fixtures
+       WHERE id = $1`,
+      [id]
+    );
+    return result.rows[0] ?? null;
+  }
+
   async create({ competition = null, kickoff, homeTeam, awayTeam, status = 'scheduled' }) {
     const result = await this.pool.query(
       `INSERT INTO fixtures (competition, kickoff, home_team, away_team, status)

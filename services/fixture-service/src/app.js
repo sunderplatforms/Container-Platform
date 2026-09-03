@@ -10,13 +10,21 @@ function sendMetrics(response, body) {
   response.end(body);
 }
 
+const FIXTURE_ID_PATH = /^\/v1\/fixtures\/([^/]+)$/;
+
 function routeFor(request, pathname) {
   if (request.method === 'GET' && pathname === '/livez') return '/livez';
   if (request.method === 'GET' && pathname === '/readyz') return '/readyz';
   if (request.method === 'GET' && pathname === '/metrics') return '/metrics';
   if (pathname === '/v1/fixtures') return '/v1/fixtures';
+  if (request.method === 'GET' && FIXTURE_ID_PATH.test(pathname)) return '/v1/fixtures/:id';
   return 'not_found';
 }
+
+// Postgres' code for a value that can't be parsed as the column's type (e.g. a
+// non-UUID fixture id) - treated as "not found" rather than a 503, since it's
+// a malformed request, not a dependency failure.
+const INVALID_INPUT_SYNTAX = '22P02';
 
 function readJson(request) {
   return new Promise((resolve, reject) => {
@@ -76,6 +84,18 @@ export function createHandler({ repository, now = () => new Date().toISOString()
       try {
         return sendJson(response, 200, { data: await repository.list() });
       } catch {
+        return sendJson(response, 503, { error: 'Fixture data is temporarily unavailable' });
+      }
+    }
+
+    const fixtureIdMatch = url.pathname.match(FIXTURE_ID_PATH);
+    if (request.method === 'GET' && fixtureIdMatch) {
+      try {
+        const fixture = await repository.get(fixtureIdMatch[1]);
+        if (!fixture) return sendJson(response, 404, { error: 'Fixture not found' });
+        return sendJson(response, 200, { data: fixture });
+      } catch (error) {
+        if (error.code === INVALID_INPUT_SYNTAX) return sendJson(response, 404, { error: 'Fixture not found' });
         return sendJson(response, 503, { error: 'Fixture data is temporarily unavailable' });
       }
     }

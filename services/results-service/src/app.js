@@ -33,8 +33,9 @@ function readJson(request) {
   });
 }
 
-export function createHandler({ repository, now = () => new Date().toISOString(), metrics = new MetricsRegistry() }) {
+export function createHandler({ repository, fixtureClient, now = () => new Date().toISOString(), metrics = new MetricsRegistry() }) {
   if (!repository) throw new Error('A result repository is required');
+  if (!fixtureClient) throw new Error('A fixture client is required');
 
   return async (request, response) => {
     const url = new URL(request.url, `http://${request.headers.host ?? 'localhost'}`);
@@ -74,7 +75,8 @@ export function createHandler({ repository, now = () => new Date().toISOString()
 
     if (request.method === 'GET' && url.pathname === '/v1/results') {
       try {
-        return sendJson(response, 200, { data: await repository.list() });
+        const fixtureId = url.searchParams.get('fixtureId') ?? undefined;
+        return sendJson(response, 200, { data: await repository.list({ fixtureId }) });
       } catch {
         return sendJson(response, 503, { error: 'Result data is temporarily unavailable' });
       }
@@ -86,6 +88,17 @@ export function createHandler({ repository, now = () => new Date().toISOString()
         if (!result.fixtureId || result.homeScore == null || result.awayScore == null) {
           return sendJson(response, 400, { error: 'fixtureId, homeScore and awayScore are required' });
         }
+
+        let fixtureExists;
+        try {
+          fixtureExists = await fixtureClient.exists(result.fixtureId);
+        } catch {
+          return sendJson(response, 503, { error: 'Unable to verify fixtureId with fixture-service' });
+        }
+        if (!fixtureExists) {
+          return sendJson(response, 400, { error: `No fixture found for fixtureId ${result.fixtureId}` });
+        }
+
         return sendJson(response, 201, { data: await repository.create(result) });
       } catch (error) {
         if (error.message === 'Request body must be valid JSON') {

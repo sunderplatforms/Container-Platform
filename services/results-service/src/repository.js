@@ -11,7 +11,18 @@ export class PostgresResultRepository {
     await this.pool.query('SELECT 1');
   }
 
-  async list() {
+  async list({ fixtureId } = {}) {
+    if (fixtureId) {
+      const result = await this.pool.query(
+        `SELECT id, fixture_id AS "fixtureId", home_score AS "homeScore", away_score AS "awayScore", status
+         FROM results
+         WHERE fixture_id = $1
+         ORDER BY id ASC`,
+        [fixtureId]
+      );
+      return result.rows;
+    }
+
     const result = await this.pool.query(`
       SELECT id, fixture_id AS "fixtureId", home_score AS "homeScore", away_score AS "awayScore", status
       FROM results

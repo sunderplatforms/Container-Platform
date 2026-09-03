@@ -7,6 +7,7 @@ function repository() {
   return {
     isReady: async () => {},
     list: async () => [{ id: 'fixture-001', homeTeam: 'North London FC', awayTeam: 'Merseyside FC' }],
+    get: async (id) => (id === 'fixture-001' ? { id: 'fixture-001', homeTeam: 'North London FC', awayTeam: 'Merseyside FC' } : null),
     create: async (fixture) => ({ id: 'fixture-002', status: 'scheduled', ...fixture })
   };
 }
@@ -67,6 +68,38 @@ test('GET /v1/fixtures lists fixtures', async (t) => {
   assert.equal(response.status, 200);
   assert.equal(body.data.length, 1);
   assert.equal(body.data[0].id, 'fixture-001');
+});
+
+test('GET /v1/fixtures/:id returns a single fixture', async (t) => {
+  const server = await startServer();
+  t.after(() => server.close());
+  const { port } = server.address();
+
+  const response = await fetch(`http://127.0.0.1:${port}/v1/fixtures/fixture-001`);
+  assert.equal(response.status, 200);
+  assert.equal((await response.json()).data.id, 'fixture-001');
+});
+
+test('GET /v1/fixtures/:id returns 404 for an unknown fixture', async (t) => {
+  const server = await startServer();
+  t.after(() => server.close());
+  const { port } = server.address();
+
+  const response = await fetch(`http://127.0.0.1:${port}/v1/fixtures/does-not-exist`);
+  assert.equal(response.status, 404);
+});
+
+test('GET /v1/fixtures/:id returns 404 rather than 503 for a malformed id', async (t) => {
+  const invalidIdRepository = {
+    ...repository(),
+    get: async () => { const error = new Error('invalid input syntax for type uuid'); error.code = '22P02'; throw error; }
+  };
+  const server = await startServer({ repository: invalidIdRepository });
+  t.after(() => server.close());
+  const { port } = server.address();
+
+  const response = await fetch(`http://127.0.0.1:${port}/v1/fixtures/not-a-uuid`);
+  assert.equal(response.status, 404);
 });
 
 test('POST /v1/fixtures creates a fixture', async (t) => {

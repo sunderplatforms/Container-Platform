@@ -38,6 +38,8 @@ spec:
                 secretKeyRef:
                   name: results-service-database
                   key: url
+            - name: FIXTURE_SERVICE_URL
+              value: http://fixture-service
           ports:
             - name: http
               containerPort: 3000

@@ -1,28 +1,64 @@
 services:
-  postgres:
+  fixture-service-postgres:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: matchops
-      POSTGRES_USER: matchops
-      POSTGRES_PASSWORD: matchops
+      POSTGRES_DB: fixtures
+      POSTGRES_USER: fixtures
+      POSTGRES_PASSWORD: fixtures
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U matchops -d matchops"]
+      test: ["CMD-SHELL", "pg_isready -U fixtures -d fixtures"]
       interval: 5s
       timeout: 5s
       retries: 10
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - fixture-service-postgres-data:/var/lib/postgresql/data
 
   fixture-service:
     build: ./services/fixture-service
     environment:
-      DATABASE_URL: postgresql://matchops:matchops@postgres:5432/matchops
+      DATABASE_URL: postgresql://fixtures:fixtures@fixture-service-postgres:5432/fixtures
     command: sh -c "npm run migrate && npm start"
     depends_on:
-      postgres:
+      fixture-service-postgres:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/readyz').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
     ports:
       - "3000:3000"
 
+  results-service-postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: results
+      POSTGRES_USER: results
+      POSTGRES_PASSWORD: results
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U results -d results"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - results-service-postgres-data:/var/lib/postgresql/data
+
+  results-service:
+    build: ./services/results-service
+    environment:
+      DATABASE_URL: postgresql://results:results@results-service-postgres:5432/results
+      # Resolves via the Compose network, not localhost - results-service calls
+      # fixture-service directly to confirm a fixtureId exists before persisting a result.
+      FIXTURE_SERVICE_URL: http://fixture-service:3000
+    command: sh -c "npm run migrate && npm start"
+    depends_on:
+      results-service-postgres:
+        condition: service_healthy
+      fixture-service:
+        condition: service_healthy
+    ports:
+      - "3001:3000"
+
 volumes:
-  postgres-data:
+  fixture-service-postgres-data:
+  results-service-postgres-data:
