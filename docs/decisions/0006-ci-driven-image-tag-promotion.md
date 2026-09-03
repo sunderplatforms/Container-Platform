@@ -32,12 +32,11 @@ deployed references it anymore.
 * Needs a credential with write access to a second repo (`GITOPS_DEPLOY_TOKEN`, scoped to
   `write_repository` only, unprotected since this repo has no branch protection policy yet)
   - one more secret whose scope and rotation now matter.
-* Getting this working end-to-end took three real rounds of failure, each a genuine gap in
-  verification rather than the mechanism itself being wrong: the promote job's image
-  (`alpine/git`) sets `ENTRYPOINT git`, which silently broke every script line until
-  `entrypoint: [""]` reset it; the `sed` substitution used a GNU-only `\s` that would have
-  behaved differently on the Alpine image's BusyBox `sed` than in local testing; and the
-  first working token was a GitLab "fine-grained" personal access token with none of the
-  right permissions, requiring a legacy-style Project Access Token instead. Each was caught
-  by actually running the exact failing step (in a real pipeline, or a local container
-  pulling the identical image) rather than reasoning about what should work.
+* Getting this working end-to-end took real failures, each a genuine gap in verification
+  rather than the mechanism itself being wrong: the promote job's image (`alpine/git`) sets
+  `ENTRYPOINT git`, which silently broke every script line until `entrypoint: [""]` reset
+  it; and acquiring a working credential took longer than either pipeline failure - a
+  GitLab "fine-grained" personal access token with none of the right permissions, Project
+  Access Token creation turning out to be disabled at the group level, before a "Legacy"
+  personal access token scoped to `write_repository` actually worked. Full account, including
+  what was verified and how, in [the postmortem](../postmortems/2026-09-03-ci-promote-rollout.md).
