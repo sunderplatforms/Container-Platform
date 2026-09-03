@@ -6,9 +6,15 @@ The repository now includes `fixture-service`, a deliberately small API that est
 
 It exposes:
 
-* `GET /health` for Kubernetes health checks
+* `GET /livez` for Kubernetes liveness checks (no dependency checks — the process is up)
+* `GET /readyz` for Kubernetes readiness checks (confirms the database is reachable)
 * `GET /v1/fixtures` to return seed fixture data
 * `POST /v1/fixtures` to add a persisted fixture
+
+Liveness and readiness are deliberately separate endpoints: liveness never checks the
+database, so a transient database outage can't make Kubernetes restart otherwise-healthy
+pods. Readiness does check the database, so Kubernetes stops routing traffic to a pod
+that can't currently serve requests without killing it.
 
 ## Run locally
 
@@ -25,7 +31,8 @@ npm start
 In another terminal:
 
 ```sh
-curl http://localhost:3000/health
+curl http://localhost:3000/livez
+curl http://localhost:3000/readyz
 curl http://localhost:3000/v1/fixtures
 curl http://localhost:3000/metrics
 ```
@@ -53,7 +60,8 @@ Create `fixture-service-database` in the target namespace with a `url` key befor
 ```sh
 kubectl apply -k platform/kubernetes/base/fixture-service
 kubectl port-forward service/fixture-service 8080:80
-curl http://localhost:8080/health
+curl http://localhost:8080/livez
+curl http://localhost:8080/readyz
 ```
 
 For a local Kind cluster, load the image before applying the manifests:
@@ -77,7 +85,8 @@ kubectl port-forward -n match-data service/fixture-service 8080:80
 Then verify the service in another terminal:
 
 ```sh
-curl http://localhost:8080/health
+curl http://localhost:8080/livez
+curl http://localhost:8080/readyz
 curl http://localhost:8080/v1/fixtures
 curl http://localhost:8080/metrics
 ```

@@ -11,7 +11,8 @@ function sendMetrics(response, body) {
 }
 
 function routeFor(request, pathname) {
-  if (request.method === 'GET' && pathname === '/health') return '/health';
+  if (request.method === 'GET' && pathname === '/livez') return '/livez';
+  if (request.method === 'GET' && pathname === '/readyz') return '/readyz';
   if (request.method === 'GET' && pathname === '/metrics') return '/metrics';
   if (pathname === '/v1/fixtures') return '/v1/fixtures';
   return 'not_found';
@@ -54,7 +55,15 @@ export function createHandler({ repository, now = () => new Date().toISOString()
       return sendMetrics(response, metrics.render());
     }
 
-    if (request.method === 'GET' && url.pathname === '/health') {
+    // Liveness: process is up and able to handle requests. No dependency checks,
+    // so a database blip never causes Kubernetes to restart a healthy pod.
+    if (request.method === 'GET' && url.pathname === '/livez') {
+      return sendJson(response, 200, { status: 'ok', service: 'fixture-service', timestamp: now() });
+    }
+
+    // Readiness: process is up AND able to serve traffic. Checks the database,
+    // so Kubernetes stops routing traffic here without killing the pod.
+    if (request.method === 'GET' && url.pathname === '/readyz') {
       try {
         await repository.isReady();
         return sendJson(response, 200, { status: 'ok', service: 'fixture-service', timestamp: now() });

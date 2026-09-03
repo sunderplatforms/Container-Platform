@@ -17,16 +17,44 @@ async function startServer(overrides = {}) {
   return server;
 }
 
-test('GET /health returns service status', async (t) => {
-  const server = await startServer();
+test('GET /livez returns ok without touching the repository', async (t) => {
+  const failingRepository = {
+    isReady: async () => { throw new Error('database is unreachable'); }
+  };
+  const server = await startServer({ repository: failingRepository });
   t.after(() => server.close());
   const { port } = server.address();
 
-  const response = await fetch(`http://127.0.0.1:${port}/health`);
+  const response = await fetch(`http://127.0.0.1:${port}/livez`);
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), {
     status: 'ok', service: 'fixture-service', timestamp: '2026-07-15T12:00:00Z'
   });
+});
+
+test('GET /readyz returns ok when the database is reachable', async (t) => {
+  const server = await startServer();
+  t.after(() => server.close());
+  const { port } = server.address();
+
+  const response = await fetch(`http://127.0.0.1:${port}/readyz`);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    status: 'ok', service: 'fixture-service', timestamp: '2026-07-15T12:00:00Z'
+  });
+});
+
+test('GET /readyz returns 503 when the database is unreachable', async (t) => {
+  const failingRepository = {
+    isReady: async () => { throw new Error('database is unreachable'); }
+  };
+  const server = await startServer({ repository: failingRepository });
+  t.after(() => server.close());
+  const { port } = server.address();
+
+  const response = await fetch(`http://127.0.0.1:${port}/readyz`);
+  assert.equal(response.status, 503);
+  assert.deepEqual(await response.json(), { status: 'unavailable', service: 'fixture-service' });
 });
 
 test('GET /v1/fixtures lists fixtures', async (t) => {
@@ -61,11 +89,11 @@ test('GET /metrics exposes Prometheus metrics', async (t) => {
   t.after(() => server.close());
   const { port } = server.address();
 
-  await fetch(`http://127.0.0.1:${port}/health`);
+  await fetch(`http://127.0.0.1:${port}/readyz`);
   const response = await fetch(`http://127.0.0.1:${port}/metrics`);
   const body = await response.text();
 
   assert.equal(response.status, 200);
   assert.match(response.headers.get('content-type'), /text\/plain/);
-  assert.match(body, /fixture_service_http_requests_total\{method="GET",route="\/health",status_code="200"\} 1/);
+  assert.match(body, /fixture_service_http_requests_total\{method="GET",route="\/readyz",status_code="200"\} 1/);
 });
