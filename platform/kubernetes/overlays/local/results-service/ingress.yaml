@@ -1,0 +1,22 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: results-service
+  namespace: match-data
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts:
+        - results-service.local
+      secretName: results-service-tls
+  rules:
+    - host: results-service.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: results-service
+                port:
+                  number: 80
