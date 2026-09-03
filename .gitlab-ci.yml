@@ -8,7 +8,14 @@ default:
 
 .promote:
   stage: promote
-  image: alpine/git:2.45.2
+  image:
+    # alpine/git's default ENTRYPOINT is `git`, so without resetting it every
+    # script line the runner executes gets wrapped as `git sh -c '...'` -
+    # exactly the "git: 'sh' is not a git command" failure this caused on the
+    # first real pipeline run. entrypoint: [""] clears it so the runner's
+    # normal shell invocation works.
+    name: alpine/git:2.45.2
+    entrypoint: [""]
   rules:
     - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
   script:
