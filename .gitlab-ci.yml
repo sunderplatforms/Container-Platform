@@ -22,6 +22,31 @@ fixture-service:test:
   script:
     - npm test
 
+fixture-service:integration-test:
+  stage: test
+  image: node:20-alpine
+  variables:
+    SERVICE_DIRECTORY: services/fixture-service
+    POSTGRES_DB: fixtures
+    POSTGRES_USER: fixtures
+    POSTGRES_PASSWORD: fixtures
+    DATABASE_URL: postgresql://fixtures:fixtures@postgres:5432/fixtures
+  services:
+    - name: postgres:16-alpine
+      alias: postgres
+  cache:
+    key:
+      files:
+        - services/fixture-service/package.json
+    paths:
+      - services/fixture-service/.npm/
+  before_script:
+    - cd "$SERVICE_DIRECTORY"
+    - npm install --cache .npm --prefer-offline
+  script:
+    - npm run migrate
+    - npm run test:integration
+
 fixture-service:build:
   stage: build
   image: docker:27-cli
@@ -65,6 +90,31 @@ results-service:test:
     - npm install --cache .npm --prefer-offline
   script:
     - npm test
+
+results-service:integration-test:
+  stage: test
+  image: node:20-alpine
+  variables:
+    SERVICE_DIRECTORY: services/results-service
+    POSTGRES_DB: results
+    POSTGRES_USER: results
+    POSTGRES_PASSWORD: results
+    DATABASE_URL: postgresql://results:results@postgres:5432/results
+  services:
+    - name: postgres:16-alpine
+      alias: postgres
+  cache:
+    key:
+      files:
+        - services/results-service/package.json
+    paths:
+      - services/results-service/.npm/
+  before_script:
+    - cd "$SERVICE_DIRECTORY"
+    - npm install --cache .npm --prefer-offline
+  script:
+    - npm run migrate
+    - npm run test:integration
 
 results-service:build:
   stage: build

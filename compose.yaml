@@ -10,6 +10,10 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    # Exposed to the host so `npm run test:integration` can run against it directly,
+    # without going through the fixture-service container.
+    ports:
+      - "5433:5432"
     volumes:
       - fixture-service-postgres-data:/var/lib/postgresql/data
 
@@ -40,6 +44,10 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+    # Exposed to the host so `npm run test:integration` can run against it directly,
+    # without going through the results-service container.
+    ports:
+      - "5434:5432"
     volumes:
       - results-service-postgres-data:/var/lib/postgresql/data
 

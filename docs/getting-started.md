@@ -58,6 +58,32 @@ curl http://localhost:3000/metrics
 `results-service` follows the same pattern, but also needs `FIXTURE_SERVICE_URL` set to
 wherever `fixture-service` is reachable (e.g. `http://localhost:3000`) before it will start.
 
+### Integration tests
+
+`npm test` mocks the repository out everywhere, so it never actually exercises the SQL in
+`PostgresFixtureRepository` / `PostgresResultRepository`. `npm run test:integration` does,
+against a real Postgres. It needs `DATABASE_URL` pointing at an already-migrated database,
+and is a no-op (cleanly skipped, not failed) if that variable isn't set - which is what
+happens when the ordinary `npm test` job picks the file up too, since a `test/*.test.js`
+file always gets discovered by Node's test runner:
+
+```sh
+docker compose up -d fixture-service-postgres results-service-postgres
+
+cd services/fixture-service
+DATABASE_URL=postgresql://fixtures:fixtures@localhost:5433/fixtures npm run migrate
+DATABASE_URL=postgresql://fixtures:fixtures@localhost:5433/fixtures npm run test:integration
+
+cd ../results-service
+DATABASE_URL=postgresql://results:results@localhost:5434/results npm run migrate
+DATABASE_URL=postgresql://results:results@localhost:5434/results npm run test:integration
+```
+
+Each test creates its own rows with randomly generated ids/team names rather than
+truncating tables, so the suite is safe to run repeatedly against a persistent database.
+GitLab CI runs the same thing on every pipeline, against a disposable `postgres:16-alpine`
+service container rather than the `compose.yaml` one.
+
 ## Build the service images
 
 ```sh
