@@ -10,6 +10,8 @@ The tenant model and Argo CD deployment definitions are documented in [the GitOp
 
 Application metrics and Prometheus discovery are documented in [the observability guide](docs/observability.md).
 
+Why things are built the way they are — and what each decision actually costs, not just what it buys — is recorded in [the architecture decision log](docs/decisions/).
+
 ## Vision
 
 FPS is a cloud-native platform engineering project inspired by enterprise container platforms.
